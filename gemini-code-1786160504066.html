@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>幸福感恩日記</title>
+  <style>
+    :root {
+      --bg-color: #f4efe6;
+      --book-bg: #fffdf8;
+      --text-color: #3e2723;
+      --accent-color: #2e7d32;
+      --accent-orange: #e65100;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 15px;
+    }
+
+    .book-container {
+      width: 100%;
+      max-width: 450px;
+      background-color: var(--book-bg);
+      border: 3px solid #d7ccc8;
+      border-radius: 18px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      padding: 25px 20px;
+      position: relative;
+      min-height: 540px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .page { display: none; flex-direction: column; height: 100%; animation: fadeIn 0.4s ease-in-out; }
+    .page.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    h1 { font-size: 24px; text-align: center; color: #4e342e; margin-bottom: 10px; }
+    
+    /* 頂部切換頁籤 */
+    .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+    .tab-btn {
+      flex: 1; padding: 12px; font-size: 18px; font-weight: bold; border: 2px solid #bcaaa4;
+      background-color: #efebe9; border-radius: 10px; cursor: pointer; color: #5d4037;
+    }
+    .tab-btn.active { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
+
+    .prompt-title {
+      font-size: 20px; font-weight: bold; line-height: 1.4; margin-bottom: 15px;
+      color: #2c1810; background-color: #f5ebe0; padding: 12px; border-radius: 10px; border-left: 6px solid #8d6e63;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%; font-size: 20px; padding: 12px; border: 2px solid #bcaaa4;
+      border-radius: 12px; background-color: #fafafa; margin-bottom: 15px;
+    }
+    textarea { height: 130px; resize: none; line-height: 1.5; }
+
+    .voice-btn-container { display: flex; justify-content: center; margin-bottom: 15px; }
+    .btn-voice {
+      background-color: var(--accent-orange); color: white; border: none; font-size: 18px;
+      font-weight: bold; padding: 12px 20px; border-radius: 30px; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 8px rgba(230,81,0,0.3);
+    }
+    .btn-voice.recording { background-color: #d50000; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+    .btn-next {
+      background-color: var(--accent-color); color: white; border: none; font-size: 20px;
+      font-weight: bold; padding: 14px; border-radius: 12px; cursor: pointer; width: 100%; margin-top: auto;
+    }
+
+    .status-msg { font-size: 15px; text-align: center; color: #757575; min-height: 22px; margin-bottom: 5px; }
+    .cover-page { text-align: center; justify-content: center; gap: 15px; }
+    .stamp { font-size: 70px; margin: 10px 0; }
+
+    /* 日曆與典藏介面樣式 */
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
+    .cal-day-header { text-align: center; font-weight: bold; font-size: 16px; color: #8d6e63; padding-bottom: 5px; }
+    .cal-date {
+      aspect-ratio: 1; border: 1px solid #d7ccc8; border-radius: 8px; display: flex;
+      flex-direction: column; align-items: center; justify-content: center; font-size: 16px;
+      background-color: #fff; cursor: pointer; position: relative;
+    }
+    .cal-date.has-data { background-color: #e8f5e9; border-color: #81c784; font-weight: bold; }
+    .cal-date .flower { font-size: 12px; margin-top: 2px; }
+    
+    /* 典藏彈跳視窗 */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; padding: 20px; z-index: 100;
+    }
+    .modal-content {
+      background-color: var(--book-bg); padding: 20px; border-radius: 16px; width: 100%; max-width: 400px;
+      max-height: 80vh; overflow-y: auto; border: 3px solid #bcaaa4;
+    }
+    .modal-item { background-color: #f5ebe0; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 18px; }
+  </style>
+</head>
+<body>
+
+<div class="book-container">
+
+  <!-- 分頁切換鈕 -->
+  <div class="nav-tabs" id="main-nav" style="display:none;">
+    <button class="tab-btn active" id="tab-write" onclick="switchMainTab('write')">✍️ 寫今天</button>
+    <button class="tab-btn" id="tab-archive" onclick="switchMainTab('archive')">📅 IG典藏</button>
+  </div>
+
+  <!-- 0-1. 初始化：設定名字 -->
+  <div class="page active cover-page" id="page-setup">
+    <div style="font-size: 60px;">🪶</div>
+    <h1>歡迎來到感恩日記</h1>
+    <p style="font-size: 18px; color: #6d4c41;">請告訴我您的名字或暱稱：</p>
+    <input type="text" id="user-name-input" placeholder="例如：陳阿嬤" style="text-align: center;">
+    <button class="btn-next" onclick="saveUserName()">設定完成，開始使用 ➔</button>
+  </div>
+
+  <!-- 0-2. 封面 -->
+  <div class="page cover-page" id="page-0">
+    <div style="font-size: 60px;">📖</div>
+    <h1 id="book-title-display">XXX 的幸福感恩日記</h1>
+    <p style="font-size: 18px; color: #6d4c41;">點擊下方按鈕<br>翻開今天的日記頁吧！</p>
+    <button class="btn-next" onclick="nextPage(1)">翻開日記本 ➔</button>
+  </div>
+
+  <!-- 第 1 頁 -->
+  <div class="page" id="page-1">
+    <div class="prompt-title">1. 今天有吃到什麼好吃的，或是遇到開心的事嗎？</div>
+    <textarea id="input-1" placeholder="按下方橘色按鈕用講的，或是直接打字..."></textarea>
+    <div class="status-msg" id="status-1"></div>
+    <div class="voice-btn-container">
+      <button class="btn-voice" id="voice-btn-1" onclick="toggleVoice(1)">
+        🎤 <span id="voice-txt-1">按住/點擊開始講話</span>
+      </button>
+    </div>
+    <button class="btn-next" onclick="nextPage(2)">寫好了，下一頁 ➔</button>
+  </div>
+
+  <!-- 第 2 頁 -->
+  <div class="page" id="page-2">
+    <div class="prompt-title">2. 今天有想感謝哪位家人或朋友嗎？</div>
+    <textarea id="input-2" placeholder="按下方橘色按鈕用講的，或是直接打字..."></textarea>
+    <div class="status-msg" id="status-2"></div>
+    <div class="voice-btn-container">
+      <button class="btn-voice" id="voice-btn-2" onclick="toggleVoice(2)">
+        🎤 <span id="voice-txt-2">按住/點擊開始講話</span>
+      </button>
+    </div>
+    <button class="btn-next" onclick="nextPage(3)">寫好了，下一頁 ➔</button>
+  </div>
+
+  <!-- 第 3 頁 -->
+  <div class="page" id="page-3">
+    <div class="prompt-title">3. 今天對自己說一句鼓勵的話吧！</div>
+    <textarea id="input-3" placeholder="按下方橘色按鈕用講的，或是直接打字..."></textarea>
+    <div class="status-msg" id="status-3"></div>
+    <div class="voice-btn-container">
+      <button class="btn-voice" id="voice-btn-3" onclick="toggleVoice(3)">
+        🎤 <span id="voice-txt-3">按住/點擊開始講話</span>
+      </button>
+    </div>
+    <button class="btn-next" onclick="submitJournal()">合上小書並儲存 🪶</button>
+  </div>
+
+  <!-- 封底/完成頁 -->
+  <div class="page cover-page" id="page-4">
+    <div class="stamp">💮</div>
+    <h1>今日紀錄完成！</h1>
+    <p style="font-size: 18px; line-height: 1.6; color: #33691e;" id="finish-msg">
+      太棒了！專屬助教小福已經幫您把今天的 3 件好事存進故事書裡囉！<br>祝您今晚有個好夢 🌙
+    </p>
+    <button class="btn-next" onclick="switchMainTab('archive')">前往 IG 典藏查看月曆 📅</button>
+  </div>
+
+  <!-- 📅 IG 典藏頁面 -->
+  <div class="page" id="page-archive">
+    <h1 id="archive-title">我的幸福典藏庫</h1>
+    <p style="font-size: 16px; text-align: center; color: #6d4c41; margin-bottom: 10px;">點擊有蓋章 💮 的日期複習快樂記憶！</p>
+    <div class="calendar-grid" id="calendar-board"></div>
+  </div>
+
+</div>
+
+<!-- 典藏視窗 (Modal) -->
+<div class="modal" id="archive-modal">
+  <div class="modal-content">
+    <h2 id="modal-date" style="margin-bottom: 15px; color:#4e342e;">2026-08-08 的紀錄</h2>
+    <div id="modal-body"></div>
+    <button class="btn-next" onclick="closeModal()" style="margin-top: 15px;">關閉視窗</button>
+  </div>
+</div>
+
+<script>
+  let userName = localStorage.getItem('journal_user_name') || '';
+  let isRecording = false;
+  let recognition = null;
+
+  // 語音辨識初始化
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'zh-TW';
+  }
+
+  window.onload = function() {
+    if (userName) {
+      initApp();
+    }
+  };
+
+  function saveUserName() {
+    const nameInput = document.getElementById('user-name-input').value.trim();
+    if (!nameInput) { alert('請輸入您的姓名或暱稱喔！'); return; }
+    userName = nameInput;
+    localStorage.setItem('journal_user_name', userName);
+    initApp();
+  }
+
+  function initApp() {
+    document.getElementById('page-setup').classList.remove('active');
+    document.getElementById('main-nav').style.display = 'flex';
+    document.getElementById('book-title-display').innerText = `${userName} 的幸福感恩日記`;
+    document.getElementById('archive-title').innerText = `${userName} 的幸福典藏庫`;
+    nextPage(0);
+  }
+
+  function nextPage(pageNum) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(`page-${pageNum}`).classList.add('active');
+    stopSpeech();
+  }
+
+  function switchMainTab(tab) {
+    document.getElementById('tab-write').classList.toggle('active', tab === 'write');
+    document.getElementById('tab-archive').classList.toggle('active', tab === 'archive');
+    if (tab === 'write') {
+      nextPage(0);
+    } else {
+      renderCalendar();
+      nextPage('archive');
+    }
+  }
+
+  // 語音輸入控制
+  function toggleVoice(pageId) {
+    if (!recognition) { alert('您的手機瀏覽器不支援語音輸入，請直接打字。'); return; }
+    const btn = document.getElementById(`voice-btn-${pageId}`);
+    const txt = document.getElementById(`voice-txt-${pageId}`);
+    const status = document.getElementById(`status-${pageId}`);
+    const textarea = document.getElementById(`input-${pageId}`);
+
+    if (isRecording) { recognition.stop(); return; }
+
+    recognition.onstart = function() {
+      isRecording = true;
+      btn.classList.add('recording');
+      txt.innerText = "正在聽您說話...";
+      status.innerText = "請開始講話...";
+    };
+
+    recognition.onresult = function(event) {
+      const transcript = event.results[0][0].transcript;
+      textarea.value += (textarea.value ? " " : "") + transcript;
+      status.innerText = "已收錄您的話語！";
+    };
+
+    recognition.onend = function() {
+      isRecording = false;
+      btn.classList.remove('recording');
+      txt.innerText = "按住/點擊開始講話";
+    };
+
+    recognition.start();
+  }
+
+  function stopSpeech() { if (recognition && isRecording) recognition.stop(); }
+
+  // 提交與儲存（Local Storage + 傳輸介面）
+  function submitJournal() {
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const journalData = {
+      userName: userName,
+      date: todayStr,
+      q1: document.getElementById('input-1').value || '無紀錄',
+      q2: document.getElementById('input-2').value || '無紀錄',
+      q3: document.getElementById('input-3').value || '無紀錄'
+    };
+
+    // 存入本機典藏資料庫
+    let archives = JSON.parse(localStorage.getItem('journal_archives') || '{}');
+    archives[todayStr] = journalData;
+    localStorage.setItem('journal_archives', JSON.stringify(archives));
+
+    document.getElementById('finish-msg').innerHTML = `太棒了，${userName}！<br>專屬助教已幫您把今天的 3 件好事存入【IG典藏庫】囉！`;
+    nextPage(4);
+  }
+
+  // 渲染典藏月曆
+  function renderCalendar() {
+    const board = document.getElementById('calendar-board');
+    board.innerHTML = '';
+    const archives = JSON.parse(localStorage.getItem('journal_archives') || '{}');
+
+    const headers = ['日', '一', '二', '三', '四', '五', '六'];
+    headers.forEach(h => {
+      board.innerHTML += `<div class="cal-day-header">${h}</div>`;
+    });
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    for (let day = 1; day <= totalDays; day++) {
+      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const hasData = !!archives[dateKey];
+      
+      const dayEl = document.createElement('div');
+      dayEl.className = `cal-date ${hasData ? 'has-data' : ''}`;
+      dayEl.innerHTML = `<span>${day}</span>${hasData ? '<span class="flower">💮</span>' : ''}`;
+      
+      if (hasData) {
+        dayEl.onclick = () => openArchiveModal(dateKey);
+      }
+      board.appendChild(dayEl);
+    }
+  }
+
+  function openArchiveModal(dateKey) {
+    const archives = JSON.parse(localStorage.getItem('journal_archives') || '{}');
+    const data = archives[dateKey];
+    if (!data) return;
+
+    document.getElementById('modal-date').innerText = `📅 ${dateKey} 的快樂紀錄`;
+    document.getElementById('modal-body').innerHTML = `
+      <div class="modal-item"><b>1. 開心的小事：</b><br>${data.q1}</div>
+      <div class="modal-item"><b>2. 想感謝的人：</b><br>${data.q2}</div>
+      <div class="modal-item"><b>3. 給自己的鼓勵：</b><br>${data.q3}</div>
+    `;
+    document.getElementById('archive-modal').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('archive-modal').style.display = 'none';
+  }
+</script>
+
+</body>
+</html>
